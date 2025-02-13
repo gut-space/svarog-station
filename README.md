@@ -20,7 +20,7 @@ Project founders: [Sławek Figiel](https://github.com/fivitti) and [Tomek Mrugal
 
 As of Feb 2021, the following features are working:
 
-- WiMo TA-1 antenna, SDR and RPi4 are working
+- WiMo TA-1 and QFH antennas, SDR and RPi4 are working
 - Automated reception and transmission decoding for NOAA-15, NOAA-18 and NOAA-19 satellites (APT)
 - Support for Meteor M2 transmissions (LRPT)
 - Transmissions are decoded and uploaded automatically to our content server (see https://svarog.space)
@@ -40,7 +40,5 @@ Work in progress and plans for the near future:
 - [Installation](doc/install.md)
 - [Architecture](doc/arch.md)
 - [Developer's guide](doc/devel.md)
-- [Project report](doc/prototype-phase/satnogs-gdn-report.pdf) - a report from the early days when this was a team university project
-- [Project poster 1](doc/prototype-phase/poster1-pl.jpg)
-- [Project poster 2](doc/prototype-phase/poster2-en.jpg)
-- For older files see https://github.com/gut-space/satnogs.
+
+For older files see https://github.com/gut-space/satnogs.
