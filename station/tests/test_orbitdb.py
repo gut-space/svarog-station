@@ -25,7 +25,7 @@ class TestOrbitDb(unittest.TestCase):
         rmtree(CONFIG_DIRECTORY, ignore_errors=True)
 
     def test_get_tle(self):
-        now = datetime.datetime.utcnow()
+        now = datetime.datetime.now(datetime.UTC)
         tle = self.db.get_tle("NOAA 15", now)
 
         self.assertIsNotNone(tle)

@@ -35,7 +35,7 @@ import az_elev_chart
 def get_interval(job: CronItem) -> int:
     """Returns the interval how frequently (in seconds) a given job should be run."""
     frequency = job.frequency()
-    year = datetime.datetime.utcnow().year
+    year = datetime.datetime.now(datetime.UTC).year
     days_in_year = 366 if calendar.isleap(year) else 365
     interval = int(round((days_in_year * 24 * 60 * 60 * 1.0) / frequency))
     return interval
@@ -325,7 +325,7 @@ elif command == "pass":
             aos: datetime.datetime = args.aos
             aos = aos.replace(tzinfo=tz.tzutc())
         else:
-            aos = datetime.datetime.utcnow()
+            aos = datetime.datetime.now(datetime.UTC)
             aos = aos.replace(tzinfo=tz.tzutc())
 
     aos = aos.astimezone(tz.tzutc())

@@ -81,7 +81,7 @@ class OrbitDatabase:
 
     def _is_in_source(self, source, sat_id):
         try:
-            source.get_tle(sat_id, datetime.datetime.utcnow())
+            source.get_tle(sat_id, datetime.datetime.now(datetime.UTC))
             return True
         except LookupError:
             return False
