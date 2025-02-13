@@ -6,3 +6,7 @@ jobs:
     uses: ./.github/workflows/pytest-main.yml
     with:
       python-version: 3.12
+
+permissions:
+  contents: read
+  pull-requests: write
