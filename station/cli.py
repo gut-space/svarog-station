@@ -221,7 +221,8 @@ logging_parser.add_argument("--level", choices=("DEBUG", "INFO", "WARNING", "ERR
 
 obs_parser = subparsers.add_parser("obs", help="Local observations management")
 obs_parser.add_argument("--clean", action="store_true", default=False, help="Clean useless observations (default: %(default)s)")
-obs_parser.add_argument("--del-uploaded", action="store_true", default=False, help="Deletes observations that were uploaded (default: %(default)s)")
+obs_parser.add_argument("--status", type=str, help="Comma-separated list of statuses to filter by (e.g., 'UPLOADED,SUCCESS')")
+obs_parser.add_argument("--delete", type=str, help="Comma-separated list of statuses to delete (e.g., 'UPLOADED,USELESS')")
 
 metadata_parser = subparsers.add_parser("metadata", help="Displays metadata")
 
@@ -465,6 +466,15 @@ elif command == "obs":
         print("No obsdir defined in config file. Please use `station config global --directory <dir>` to set it.")
         sys.exit(1)
 
-    obs_list(obsdir=config["obsdir"], clean=args.clean, del_uploaded=args.del_uploaded)
+    # Parse status filter and deletion lists
+    status_filter = None
+    if args.status:
+        status_filter = [s.strip() for s in args.status.split(',')]
+
+    del_statuses = None
+    if args.delete:
+        del_statuses = [s.strip() for s in args.delete.split(',')]
+
+    obs_list(obsdir=config["obsdir"], clean=args.clean, status_filter=status_filter, del_statuses=del_statuses)
 else:
     parser.print_help()

@@ -147,6 +147,6 @@ class OrbitDatabase:
                 dt = datetime.timedelta(seconds=age)
                 data.append((url, "%s: %s ago" % ("Out-of-date" if out_of_date else "Current", str(dt))))
             else:
-                data.append((url, "Not exists"))
+                data.append((url, "Doesn't exist"))
 
         return "\n".join("%s - %s" % (url, desc) for url, desc in data)
