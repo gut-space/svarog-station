@@ -90,8 +90,8 @@ def print_passes(passes, config: Configuration):
     passes = sorted(passes, key=lambda x: x[1].aos)
     n = fg(15)  # normal text
 
-    print(" Satellite   | Norad | AOS                      | LOS                      | Max alt. (deg)")
-    print("-------------+-------+--------------------------+--------------------------+----------------")
+    print(" Satellite   | Norad | AOS                      | LOS                      | Max alt. (deg) | Freq (MHz)")
+    print("-------------+-------+--------------------------+--------------------------+----------------+------------")
 
     for p in passes:
         max_alt = p[1].max_elevation_deg
@@ -108,7 +108,19 @@ def print_passes(passes, config: Configuration):
         aos_txt = get_timestamp_str(p[1].aos, timezone)
         los_txt = get_timestamp_str(p[1].los, timezone)
 
-        print(f"{p[0]:{name_width}} | {norad:3.0f} | {c}{aos_txt:<24}{n} | {c}{los_txt:<24}{n} | {c}{p[1].max_elevation_deg:4.1f}{n}")
+        # Get frequency from config
+        freq_mhz = "N/A"
+        try:
+            from utils.models import get_satellite
+            sat_config = get_satellite(config, p[0])
+            if 'freq' in sat_config and sat_config['freq']:
+                # Convert Hz to MHz
+                freq_hz = float(sat_config['freq'])
+                freq_mhz = f"{freq_hz / 1e6:.3f}"
+        except (LookupError, ValueError, KeyError):
+            pass
+
+        print(f"{p[0]:{name_width}} | {norad:3.0f} | {c}{aos_txt:<24}{n} | {c}{los_txt:<24}{n} | {c}{p[1].max_elevation_deg:4.1f}{n}           | {freq_mhz:>8}")
 
 
 def clear(cron):
