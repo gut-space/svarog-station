@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import argparse
 import datetime
 import os
 import requests
@@ -185,42 +186,125 @@ def submit_observation(data: SubmitRequestData):
     return status
 
 
-if __name__ == '__main__':
-    if len(sys.argv) < 4:
-        print("Not enough parameters. At least 3 are needed: "
-              "filename sat_name aos [tca] [los] [metadata.json] [rating(float)]")
-        print("filename can be a single file or coma separated list (no spaces)")
-        exit(1)
+def parse_arguments(args=None):
+    """
+    Parse command line arguments using argparse.
 
-    filename = sys.argv[1]
-    sat_name = sys.argv[2]
-    aos = tca = los = from_iso_format(sys.argv[3])
-    cfg = "{}"
-    rating = None
+    Parameters
+    ==========
+    args: list, optional
+        List of arguments to parse. If None, uses sys.argv[1:]
 
-    if len(sys.argv) >= 5:
-        tca = from_iso_format(sys.argv[4])
-
-    if len(sys.argv) >= 6:
-        los = from_iso_format(sys.argv[5])
-
-    if len(sys.argv) >= 7:
-        try:
-            # Just check if ths input is a valid JSON (but use it as text anyway)
-            json.loads(sys.argv[6])
-            cfg = sys.argv[6]
-        except Exception:
-            logging.error(f"ERROR: The meta-data (config) was specified: {sys.argv[6]}, but it's not a valid JSON")
-
-    if len(sys.argv) >= 8:
-        rating = float(sys.argv[7])
-
-    # Files can be coma separated (or it could be just a single file)
-    filename = filename.split(",")
-
-    status = submit_observation(
-        SubmitRequestData(filename, sat_name, aos, tca, los, cfg, rating)
+    Returns
+    =======
+    argparse.Namespace
+        Parsed arguments
+    """
+    parser = argparse.ArgumentParser(
+        description="Submit observation data to Svarog station server",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  %(prog)s image.png "NOAA 15" 2023-01-01T12:00:00Z
+  %(prog)s image1.png,image2.png "NOAA 18" 2023-01-01T12:00:00Z --tca 2023-01-01T12:30:00Z
+  %(prog)s image.png "NOAA 19" 2023-01-01T12:00:00Z --metadata '{"notes": "test"}' --rating 0.8
+        """
     )
 
-    # Empty string means success, everything else is a failure
-    sys.exit(0 if status["status-code"] in [201, 204] else 1)
+    parser.add_argument(
+        "filename",
+        help="File(s) to upload. Can be a single file or comma-separated list (no spaces)"
+    )
+
+    parser.add_argument(
+        "sat_name",
+        help="Satellite name compatible with NORAD format"
+    )
+
+    parser.add_argument(
+        "aos",
+        help="Acquisition of Signal (or Satellite) time in ISO format"
+    )
+
+    parser.add_argument(
+        "--tca",
+        help="Time of Closest Approach in ISO format (defaults to AOS if not specified)"
+    )
+
+    parser.add_argument(
+        "--los",
+        help="Loss of Signal (or Satellite) time in ISO format (defaults to AOS if not specified)"
+    )
+
+    parser.add_argument(
+        "--metadata",
+        default="{}",
+        help="Metadata information in JSON format (default: empty JSON object)"
+    )
+
+    parser.add_argument(
+        "--rating",
+        type=float,
+        help="Rating of image (0.0 to 1.0)"
+    )
+
+    return parser.parse_args(args)
+
+
+def main(args=None):
+    """
+    Main function that can be called programmatically or from command line.
+
+    Parameters
+    ==========
+    args: list, optional
+        Command line arguments. If None, uses sys.argv[1:]
+
+    Returns
+    =======
+    int
+        Exit code (0 for success, 1 for failure)
+    """
+    try:
+        parsed_args = parse_arguments(args)
+
+        # Parse filenames (can be comma-separated)
+        filenames = [f.strip() for f in parsed_args.filename.split(",")]
+
+        # Parse dates
+        aos = from_iso_format(parsed_args.aos)
+        tca = from_iso_format(parsed_args.tca) if parsed_args.tca else aos
+        los = from_iso_format(parsed_args.los) if parsed_args.los else aos
+
+        # Validate metadata JSON
+        try:
+            json.loads(parsed_args.metadata)
+            cfg = parsed_args.metadata
+        except json.JSONDecodeError:
+            logging.error(f"ERROR: The metadata '{parsed_args.metadata}' is not valid JSON")
+            return 1
+
+        # Create submission data
+        data = SubmitRequestData(
+            image_path=filenames,
+            sat_name=parsed_args.sat_name,
+            aos=aos,
+            tca=tca,
+            los=los,
+            config=cfg,
+            rating=parsed_args.rating
+        )
+
+        # Submit observation
+        status = submit_observation(data)
+
+        # Return appropriate exit code
+        return 0 if status["status-code"] in [201, 204] else 1
+
+    except Exception as e:
+        logging.error(f"Error: {e}")
+        return 1
+
+
+if __name__ == '__main__':
+    sys.exit(main())
