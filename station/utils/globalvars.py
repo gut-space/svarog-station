@@ -51,6 +51,10 @@ if MAX_LOGGING:
     loglevel = logging.DEBUG
 
 
-logging.basicConfig(level=loglevel,
-                    format='%(asctime)s %(levelname)s %(filename)s:%(lineno)d: %(message)s',
-                    filename=LOG_FILE)
+def setup_logging(level: int, logfile: str):
+    print(f"Setting log level to {loglevel}, logging to {logfile}")
+    logging.basicConfig(level=loglevel,
+                        format='%(asctime)s %(levelname)s %(filename)s:%(lineno)d: %(message)s',
+                        filename=logfile, force=True)
+
+setup_logging(loglevel, LOG_FILE)

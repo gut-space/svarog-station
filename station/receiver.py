@@ -12,6 +12,7 @@ from utils.functional import first
 from utils.models import get_satellite
 from utils.dates import from_iso_format
 from utils.configuration import open_config
+from utils.globalvars import setup_logging
 from submitobs import submit_observation, SubmitRequestData
 from recipes import factory
 from quality_ratings import get_rate_by_name
@@ -20,7 +21,7 @@ from metadata import Metadata
 
 
 def move_to_satellite_directory(root: str, sat_name: str, path: str):
-    now = datetime.datetime.utcnow()
+    now = datetime.datetime.now()
     timestamp_dir = now.strftime(r"%Y-%m-%d")
     base = os.path.basename(path)
     new_dir = os.path.join(root, sat_name, timestamp_dir)
@@ -28,9 +29,6 @@ def move_to_satellite_directory(root: str, sat_name: str, path: str):
 
     os.makedirs(new_dir, exist_ok=True)
     shutil.move(path, new_path)
-
-
-config = open_config()
 
 
 def get_rating_for_product(product_path: str, rate_name: typing.Optional[str]) \
@@ -56,18 +54,26 @@ def cmd():
 
     _, name, los, *opts = sys.argv
 
-    logging.info("Starting receiver job: name=%s los=%s, PATH=%s" % (name, los, os.getenv('PATH')))
+    config = open_config()
+
+    logging.info("Starting receiver job: name=%s, los=%s" % (name, los))
 
     satellite = get_satellite(config, name)
-
-    aos_datetime = datetime.datetime.utcnow()
+    aos_datetime = datetime.datetime.now(datetime.timezone.utc)
     los_datetime = from_iso_format(los)
+
+    # If timezone was not provided, assume UTC
+    if los_datetime.tzinfo is None:
+        los_datetime = los_datetime.replace(tzinfo=datetime.timezone.utc)
 
     # TODO: calculate TCA properly. There may be cases when an observation is interrupted by another,
     # better pass. Also, part of the pass could be obscured by buildings.
     tca_datetime = aos_datetime + (los_datetime - aos_datetime) / 2
 
+    logging.info(f"AOS: {aos_datetime}, LOS: {los_datetime}, TCA: {tca_datetime}")
     dir = factory.get_dir(satellite, los_datetime)
+    logging.info(f"Observation directory: {dir}, logging will continue in {dir + '/log.txt'}")
+    setup_logging(config["logging"]["level"], dir + "/log.txt")
 
     # Early metadata write to local file. We do this before the recipe is executed, because the recipe
     # may file. If the recipe returns without any major issues, we will write it again with possibly

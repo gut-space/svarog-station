@@ -100,7 +100,6 @@ def get_dir(sat: SatelliteConfiguration, los: datetime.datetime) -> str:
     base_dir = setup_base_dir()
 
     reception_dir = os.path.join(base_dir, get_unique_dir(sat, los))
-    logging.info("Recipe will store all files in %s" % reception_dir)
     os.makedirs(reception_dir, exist_ok=True)
 
     return reception_dir
