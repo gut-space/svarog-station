@@ -224,7 +224,7 @@ obs_parser.add_argument("--clean", action="store_true", default=False, help="Cle
 obs_parser.add_argument("--status", type=str, help="Comma-separated list of statuses to filter by (e.g., 'UPLOADED,SUCCESS')")
 obs_parser.add_argument("--delete", type=str, help="Comma-separated list of statuses to delete (e.g., 'UPLOADED,USELESS')")
 
-metadata_parser = subparsers.add_parser("metadata", help="Displays metadata")
+metadata_parser = subparsers.add_parser("metadata", help="Displays metadata (such as SDR, antenna type, etc.)")
 
 args = parser.parse_args()
 command = args.command
