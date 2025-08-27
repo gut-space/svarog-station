@@ -93,7 +93,7 @@ def cmd():
     setup_logging(config["logging"]["level"], dir + "/log.txt")
 
     # Early metadata write to local file. We do this before the recipe is executed, because the recipe
-    # may file. If the recipe returns without any major issues, we will write it again with possibly
+    # may fail. If the recipe returns without any major issues, we will write it again with possibly
     # extra metadata returned by the recipe.
     m = Metadata()
     m.set("satellite", satellite["name"])
@@ -106,10 +106,10 @@ def cmd():
     logging.info(f"INFO: metadata written to {metadata_file}.")
 
     try:
-        results, dir, metadata = factory.execute_recipe(satellite, los_datetime)
+        results, dir, m = factory.execute_recipe(satellite, los_datetime, m)
     except Exception as e:
-        logging.error(f"ERROR: Recipe execution failed, exception: {e}, {str(e)}")
-        return
+        logging.error(f"ERROR: Recipe execution failed, exception: {e}")
+        raise
 
     # We're entirely sure the recipe is honest and reported only files that were actually created *cough*.
     # However, if things go south and for some reason the recipe is mistaken (e.g. the noaa-apt fails to
@@ -137,15 +137,7 @@ def cmd():
     # signal = first(results, lambda r: r[0] == "SIGNAL")
     # log = first(results, lambda r: r[0] == "LOG")
 
-    # Use the metadata stored in file, but supplement it with details returned by the recipe
-    m = Metadata()
-    for x in metadata:
-        m.set(x, metadata[x])
-    m.set("satellite", satellite["name"])
-    m.set("aos", aos_datetime.isoformat())
-    m.set("los", los_datetime.isoformat())
-    m.set("tca", tca_datetime.isoformat())
-    # Write metadata to local file
+    # The metadata object was already updated by the recipe, just write it to file
     metadata_file = os.path.join(dir, "metadata.json")
     m.writeFile(metadata_file)
     logging.info(f"INFO: Updated metadata written to {metadata_file}.")

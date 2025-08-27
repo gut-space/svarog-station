@@ -47,6 +47,7 @@ from typing import Iterable, List, Tuple
 from utils.models import SatelliteConfiguration
 from recipes import recipes
 from utils.configuration import open_config
+from metadata import Metadata
 
 if sys.version_info[0] == 3 and sys.version_info[1] >= 8:
     from typing import Literal
@@ -77,14 +78,21 @@ def get_recipe(sat: SatelliteConfiguration):
 
     Function check "recipe" field in passed configuration for recipe.
     If it is empty then check built-in list with compatible recipes.
+
+    sat contains a dictionary with the whole configuration, including fields:
+    freq, name, recipe, save_to_disk, submit, aos_at, max_elevation, disabled
     '''
+
     recipe = None
     if "recipe" in sat:
         recipe = sat["recipe"]
     if recipe is None and sat["name"].startswith("NOAA"):
         recipe = "noaa-apt"
     if recipe is None:
-        raise LookupError("Unknown recipe")
+        raise LookupError(f"Recipe not specified. Please update your entry for satellite {sat['name']} in config.yml, e.g. add 'recipe: satdump'")
+
+    if not recipe in recipes:
+        raise LookupError(f"Recipe {recipe} not found. Supported recipes are {', '.join(recipes.keys())}.")
 
     return recipes[recipe], recipe
 
@@ -105,12 +113,12 @@ def get_dir(sat: SatelliteConfiguration, los: datetime.datetime) -> str:
     return reception_dir
 
 
-def execute_recipe(sat: SatelliteConfiguration, los: datetime.datetime) \
-        -> Tuple[Iterable[Tuple[ReceptionResultCategory, str]], str, dict]:
+def execute_recipe(sat: SatelliteConfiguration, los: datetime.datetime, metadata: Metadata) \
+        -> Tuple[Iterable[Tuple[ReceptionResultCategory, str]], str, Metadata]:
     '''
     Execute recipe for specified satellite and return results.
 
-    Return collection of tuples with category, path, and metadata.
+    Return collection of tuples with category, path, and updated metadata.
     Second item in result is path to temporary observation directory.
     If no recipe found then throw LookupError.
 
@@ -125,15 +133,14 @@ def execute_recipe(sat: SatelliteConfiguration, los: datetime.datetime) \
     recipe_function, recipe_name = get_recipe(sat)
 
     reception_dir = get_dir(sat, los)
-    now = datetime.datetime.utcnow()
+    now = datetime.datetime.now(datetime.timezone.utc)
     record_interval = los - now
 
-    metadata = {
-        "frequency": sat["freq"],
-        "recipe": str(recipe_name)
-    }
+    # Add recipe-specific metadata to the existing metadata object
+    metadata.set("frequency", sat["freq"])
+    metadata.set("recipe", str(recipe_name))
 
-    output = recipe_function(reception_dir, sat["freq"], record_interval)
+    output = recipe_function(reception_dir, sat["freq"], record_interval, metadata)
     return output, reception_dir, metadata
 
 
