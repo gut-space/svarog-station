@@ -47,9 +47,10 @@ def get_rating_for_product(product_path: str, rate_name: typing.Optional[str]) \
 
 def cmd():
     if len(sys.argv) < 3:
-        print("Usage: receiver.py <name> <los> [opts]")
+        print("Usage: receiver.py <name> <los> [aos]")
         print("name - name of the receiver")
-        print("los - loss of signal time (UTC)")
+        print("los - loss of signal time (UTC), i.e. end of transmission")
+        print("aos - acquisition of signal time (UTC), i.e. start of transmission (if not specified, start immediately)")
         return
 
     _, name, los, *opts = sys.argv
@@ -58,13 +59,29 @@ def cmd():
 
     logging.info("Starting receiver job: name=%s, los=%s" % (name, los))
 
-    satellite = get_satellite(config, name)
-    aos_datetime = datetime.datetime.now(datetime.timezone.utc)
-    los_datetime = from_iso_format(los)
+    try:
+        satellite = get_satellite(config, name)
+    except LookupError as e:
+        logging.error(f"Satellite {name} not found in config.yml: {e}")
+        return
 
-    # If timezone was not provided, assume UTC
-    if los_datetime.tzinfo is None:
-        los_datetime = los_datetime.replace(tzinfo=datetime.timezone.utc)
+    try:
+        los_datetime = from_iso_format(los)
+        # If timezone was not provided, assume UTC
+        if los_datetime.tzinfo is None:
+            los_datetime = los_datetime.replace(tzinfo=datetime.timezone.utc)
+    except ValueError as e:
+        logging.error(f"Invalid LOS time: {los}: {e}")
+        return
+
+    if len(opts) > 2:
+        aso_datetime = from_iso_format(opts[0])
+        # If timezone was not provided, assume UTC
+        if aso_datetime.tzinfo is None:
+            aso_datetime = aso_datetime.replace(tzinfo=datetime.timezone.utc)
+    else:
+        aos_datetime = datetime.datetime.now(datetime.timezone.utc)
+
 
     # TODO: calculate TCA properly. There may be cases when an observation is interrupted by another,
     # better pass. Also, part of the pass could be obscured by buildings.
