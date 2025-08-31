@@ -9,7 +9,7 @@ from recipes.helpers import set_sh_defaults
 
 
 @set_sh_defaults
-def execute(working_dir: str, frequency: str, duration: timedelta, metadata, sh=sh):
+def execute(working_dir: str, frequency: str, duration: timedelta, metadata, custom_command=None, sh=sh):
     raw_path = os.path.join(working_dir, "signal.raw")
     signal_path = os.path.join(working_dir, "signal.wav")
     product_path = os.path.join(working_dir, "product.png")

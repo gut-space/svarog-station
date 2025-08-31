@@ -19,7 +19,7 @@ Project founders: [Sławek Figiel](https://github.com/fivitti) and [Tomek Mrugal
 
 ## Project status
 
-As of July 2025, the process is being revived after couple years of dormancy. In the past, the code was able to do:
+As of Sep 2025, the process is being revived after couple years of dormancy. In the past, the code was able to do:
 
 - Scheduling of NOAA and METEOR sat passes, trigger and shutdown reception routines
 - Automated reception and decoding for NOAA-15, NOAA-18 and NOAA-19 satellites (APT)
@@ -47,6 +47,7 @@ Console view of the upcoming pass:
 
 - [Installation](doc/install.md)
 - [Architecture](doc/arch.md)
+- [Custom commands](doc/custom-commands.md)
 - [Developer's guide](doc/devel.md)
 
 For older files see https://github.com/gut-space/satnogs.

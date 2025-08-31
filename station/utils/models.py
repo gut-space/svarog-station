@@ -31,6 +31,7 @@ class SatelliteConfiguration(TypedDict, total=False):
     disabled: Optional[bool]
     recipe: Optional[str]
     rate: Optional[str]
+    custom_command: Optional[str]
 
 
 class ServerConfiguration(TypedDict):

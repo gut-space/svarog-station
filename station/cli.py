@@ -194,6 +194,7 @@ satellite_config_parser.add_argument("-me", "--max-elevation", type=int, help="M
 satellite_config_parser.add_argument("-d", "--delete", action="store_true", default=False, help="Delete satellite")
 satellite_config_parser.add_argument("--recipe", choices=get_recipe_names(), help="Recipe name to handle observation")
 satellite_config_parser.add_argument("--rate", choices=get_rate_names(), help="Function to rate quality of imagery")
+satellite_config_parser.add_argument("--custom-command", type=str, help="Custom command for the recipe")
 submit_satellite_config_parser = satellite_config_parser.add_mutually_exclusive_group()
 submit_satellite_config_parser.add_argument("--submit", action="store_true", help="Submit observations to content server", dest="submit", default=None)
 submit_satellite_config_parser.add_argument(
@@ -401,7 +402,7 @@ elif command == "config":
                     ("freq", "frequency"),
                     ("aos_at", "aos"),
                     ("max_elevation_greater_than", "max_elevation"),
-                    "recipe", "rate"
+                    "recipe", "rate", "custom_command"
                 ))
                 if args.submit and 'submit' in sat:
                     del sat['submit']
@@ -417,6 +418,12 @@ elif command == "config":
                     sat["disabled"] = True
                 elif "disabled" in sat:
                     del sat['disabled']
+
+                # Handle custom command field - remove if empty string, set if provided
+                if args.custom_command == "" and 'custom_command' in sat:
+                    del sat['custom_command']
+                elif args.custom_command is not None:
+                    sat["custom_command"] = args.custom_command
 
         elif args.delete:
             section.clear()

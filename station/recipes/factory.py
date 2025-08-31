@@ -140,7 +140,12 @@ def execute_recipe(sat: SatelliteConfiguration, los: datetime.datetime, metadata
     metadata.set("frequency", sat["freq"])
     metadata.set("recipe", str(recipe_name))
 
-    output = recipe_function(reception_dir, sat["freq"], record_interval, metadata)
+    # Pass custom command if specified
+    custom_command = sat.get("custom_command")
+    if custom_command:
+        metadata.set("custom_command", custom_command)
+
+    output = recipe_function(reception_dir, sat["freq"], record_interval, metadata, custom_command)
     return output, reception_dir, metadata
 
 
