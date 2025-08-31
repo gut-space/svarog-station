@@ -136,6 +136,10 @@ def execute_recipe(sat: SatelliteConfiguration, los: datetime.datetime, metadata
     now = datetime.datetime.now(datetime.timezone.utc)
     record_interval = los - now
 
+    if record_interval < datetime.timedelta(minutes=0):
+        logging.error("Invalid record interval (now is {now}, LOS is {los}, delta is {record_interval.total_seconds()} seconds)")
+        raise ValueError(f"Invalid record interval (now is {now}, LOS is {los}, delta is {record_interval.total_seconds()} seconds)")
+
     # Add recipe-specific metadata to the existing metadata object
     metadata.set("frequency", sat["freq"])
     metadata.set("recipe", str(recipe_name))
