@@ -35,14 +35,21 @@ def execute(working_dir: str, frequency: str, duration: timedelta, metadata, cus
     if custom_command:
         cmd = custom_command
     else:
-        cmd = f"satdump record {raw_path} --samplerate 3e6 --frequency {frequency} --baseband_format cf32 " + \
-              f"--source {sdr_device} --timeout {int(duration.total_seconds())}"
+        match sat_name:
+            case "noaa-15" | "noaa-18" | "noaa-19":
+                cmd = f"satdump live noaa_apt {working_dir} --samplerate 3e6 --frequency {frequency} --baseband_format cf32 " + \
+                      f"--source {sdr_device} --timeout {int(duration.total_seconds())}"
+            case "meteor-m2-3" | "meteor-m2-4":
+                cmd = f"satdump live meteor_m2_lrpt {working_dir} --samplerate 3e6 --frequency {frequency} --baseband_format cf32 " + \
+                      f"--source {sdr_device} --timeout {int(duration.total_seconds())}"
+            case _:
+                cmd = f"satdump record {raw_path} --samplerate 3e6 --frequency {frequency} --baseband_format cf32 " + \
+                    f"--source {sdr_device} --timeout {int(duration.total_seconds())}"
 
     cmd_bin = cmd.split()[0]
     cmd_args = cmd.split()[1:]
 
     logging.info(f"Executing command: {cmd_bin} {cmd_args}")
-
 
     with suppress(sh.TimeoutException):
         satdump_proc = sh.satdump( *cmd_args,
