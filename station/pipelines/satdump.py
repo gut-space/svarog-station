@@ -63,17 +63,8 @@ def execute(working_dir: str, frequency: str, duration: timedelta, metadata, cus
     except sh.TimeoutException:
 
         logging.info(f"Satdump process timed out after {duration.total_seconds()}+15 seconds")
-        logging.info(f"Satdump process is still running, sending SIGTERM")
-        if satdump_proc.is_alive():
-            satdump_proc.signal(signal.SIGTERM)
-            time.sleep(15)
-        if satdump_proc.is_alive():
-            logging.info(f"Satdump process is still running, sending SIGKILL")
-            satdump_proc.signal(signal.SIGKILL)
-
-        # Note: When using _timeout, sh returns a string result, not a RunningCommand object
-        # The timeout mechanism handles process termination automatically
 
     return [
-        ("RAW", raw_path)
+
+        # ("RAW", raw_path) Don't return anything.
     ]
