@@ -10,3 +10,6 @@ There are no releases, just rolling latest master. The list is reverse chronolog
   in certain states or delete local files for observations in certain state.
 - Dependencies updated (Sep 2025)
 - Screenshots added
+- Added support for satdump
+- Recipes renamed to pipelines to better align with the standard naming convention
+  used in the industry
