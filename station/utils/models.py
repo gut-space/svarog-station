@@ -29,7 +29,8 @@ class SatelliteConfiguration(TypedDict, total=False):
     aos_at: Optional[int]
     max_elevation_greater_than: Optional[int]
     disabled: Optional[bool]
-    recipe: Optional[str]
+    pipeline: Optional[str]
+    recipe: Optional[str]  # Backward compatibility
     rate: Optional[str]
     custom_command: Optional[str]
 

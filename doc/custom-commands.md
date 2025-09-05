@@ -1,10 +1,10 @@
-# Custom Commands for Satellite Recipes
+# Custom Commands for Satellite Pipelines
 
-This document describes the custom command functionality that allows users to specify custom commands for satellite reception recipes.
+This document describes the custom command functionality that allows users to specify custom commands for satellite reception pipelines.
 
 ## Overview
 
-The ground station software now supports custom commands that can be specified in the satellite configuration. This allows users to override the default commands used by recipes with their own custom commands.
+The ground station software now supports custom commands that can be specified in the satellite configuration. This allows users to override the default commands used by pipelines with their own custom commands.
 
 ## Configuration
 
@@ -16,7 +16,7 @@ To specify a custom command for a satellite, add a `custom_command` field to the
 satellites:
 - freq: 137.9e6
   name: METEOR-M2 3
-  recipe: satdump
+  pipeline: satdump
   custom_command: "satdump -i airspy0 -v"
   save_to_disk: ALL
 ```
@@ -36,17 +36,17 @@ python cli.py config sat "METEOR-M2 3" --custom-command ""
 python cli.py config sat "METEOR-M2 3"
 ```
 
-## Recipe Integration
+## Pipeline Integration
 
 ### How It Works
 
 1. **Configuration Parsing**: The `custom_command` field is parsed from the satellite configuration
-2. **Recipe Execution**: Custom commands are passed to recipes via the `execute_recipe` function
-3. **Recipe Usage**: Recipes can use the custom commands to override default behavior
+2. **Pipeline Execution**: Custom commands are passed to pipelines via the `execute_pipeline` function
+3. **Pipeline Usage**: Pipelines can use the custom commands to override default behavior
 
-### Recipe Function Signature
+### Pipeline Function Signature
 
-All recipes now accept a `custom_command` parameter:
+All pipelines now accept a `custom_command` parameter:
 
 ```python
 @set_sh_defaults
@@ -60,9 +60,9 @@ def execute(working_dir: str, frequency: str, duration: timedelta, metadata, cus
     # Execute the command...
 ```
 
-### Example: Satdump Recipe
+### Example: Satdump Pipeline
 
-The satdump recipe demonstrates how to use custom commands:
+The satdump pipeline demonstrates how to use custom commands:
 
 ```python
 # Use custom command if provided, otherwise use default
@@ -107,8 +107,8 @@ custom_command: "satdump -i airspy0 -v --debug --log_level DEBUG"
 ## Backward Compatibility
 
 - **Existing Configurations**: Continue to work without modification
-- **Recipes**: All existing recipes have been updated to accept the new parameter
-- **Default Behavior**: If no `custom_command` is specified, recipes use their default commands
+- **Pipelines**: All existing pipelines have been updated to accept the new parameter
+- **Default Behavior**: If no `custom_command` is specified, pipelines use their default commands
 
 ## Implementation Details
 
@@ -116,14 +116,14 @@ custom_command: "satdump -i airspy0 -v --debug --log_level DEBUG"
 
 1. **`station/utils/models.py`**: Added `custom_command` field to `SatelliteConfiguration`
 2. **`station/cli.py`**: Added `--custom-command` argument and handling logic
-3. **`station/recipes/factory.py`**: Modified recipe execution to pass custom commands
-4. **`station/recipes/satdump.py`**: Updated to use custom commands
-5. **Other recipes**: Updated function signatures for consistency
+3. **`station/pipelines/factory.py`**: Modified pipeline execution to pass custom commands
+4. **`station/pipelines/satdump.py`**: Updated to use custom commands
+5. **Other pipelines**: Updated function signatures for consistency
 
 ### Data Flow
 
 ```
-config.yml → CLI → SatelliteConfiguration → execute_recipe → Recipe → custom_command
+config.yml → CLI → SatelliteConfiguration → execute_pipeline → Pipeline → custom_command
 ```
 
 ## Testing
@@ -137,9 +137,9 @@ python cli.py config sat --help
 # Test setting custom commands
 python cli.py config sat "METEOR-M2 3" --custom-command "satdump -i airspy0 -v"
 
-# Test recipe execution (in test environment)
+# Test pipeline execution (in test environment)
 python -c "
-from recipes.factory import execute_recipe
+from pipelines.factory import execute_pipeline
 from utils.configuration import open_config
 from metadata import Metadata
 import datetime
@@ -147,7 +147,7 @@ import datetime
 config = open_config()
 sat = next(s for s in config['satellites'] if s['name'] == 'METEOR-M2 3')
 metadata = Metadata()
-results, dir, updated_metadata = execute_recipe(sat, datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=10), metadata)
+results, dir, updated_metadata = execute_pipeline(sat, datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=10), metadata)
 print('Custom command:', updated_metadata.get('custom_command'))
 "
 ```

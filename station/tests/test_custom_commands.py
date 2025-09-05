@@ -2,7 +2,7 @@
 Tests for the custom command functionality.
 
 This module tests the custom command feature that allows users to specify
-custom commands for satellite recipes.
+custom commands for satellite pipelines.
 """
 
 import unittest
@@ -15,9 +15,14 @@ from unittest.mock import patch, MagicMock
 # Set up test environment before imports
 os.environ["SVAROG_CONFIG_DIR"] = "tests/config"
 
+# Mock the sh module globally to avoid import errors
+import sys
+from unittest.mock import MagicMock
+sys.modules['sh'] = MagicMock()
+
 from utils.configuration import open_config, save_config
 from utils.models import SatelliteConfiguration
-from recipes.factory import execute_recipe, get_recipe
+from pipelines.factory import execute_pipeline, get_pipeline
 from metadata import Metadata
 
 
@@ -45,18 +50,18 @@ class TestCustomCommands(unittest.TestCase):
                 {
                     'freq': '137.62e6',
                     'name': 'NOAA 15',
-                    'recipe': 'noaa-apt'
+                    'pipeline': 'noaa-apt'
                 },
                 {
                     'freq': '137.9e6',
                     'name': 'METEOR-M2 3',
-                    'recipe': 'satdump',
+                    'pipeline': 'satdump',
                     'custom_command': 'satdump -i airspy0 -v'
                 },
                 {
                     'freq': '137.1e6',
                     'name': 'NOAA 19',
-                    'recipe': 'noaa-apt'
+                    'pipeline': 'noaa-apt'
                 }
             ],
             'server': {
@@ -89,7 +94,7 @@ class TestCustomCommands(unittest.TestCase):
 
         self.assertIn('custom_command', meteor_sat)
         self.assertEqual(meteor_sat['custom_command'], 'satdump -i airspy0 -v')
-        self.assertEqual(meteor_sat['recipe'], 'satdump')
+        self.assertEqual(meteor_sat['pipeline'], 'satdump')
 
     def test_satellite_configuration_without_custom_command(self):
         """Test that satellite configuration works without custom_command field."""
@@ -97,29 +102,29 @@ class TestCustomCommands(unittest.TestCase):
         noaa_sat = next(s for s in config['satellites'] if s['name'] == 'NOAA 15')
 
         self.assertNotIn('custom_command', noaa_sat)
-        self.assertEqual(noaa_sat['recipe'], 'noaa-apt')
+        self.assertEqual(noaa_sat['pipeline'], 'noaa-apt')
 
-    def test_get_recipe_with_custom_command(self):
-        """Test that get_recipe function works with custom_command field."""
+    def test_get_pipeline_with_custom_command(self):
+        """Test that get_pipeline function works with custom_command field."""
         config = open_config()
         meteor_sat = next(s for s in config['satellites'] if s['name'] == 'METEOR-M2 3')
 
-        recipe_func, recipe_name = get_recipe(meteor_sat)
+        pipeline_func, pipeline_name = get_pipeline(meteor_sat)
 
-        self.assertEqual(recipe_name, 'satdump')
-        self.assertIsNotNone(recipe_func)
+        self.assertEqual(pipeline_name, 'satdump')
+        self.assertIsNotNone(pipeline_func)
 
-    def test_recipe_function_signatures(self):
-        """Test that all recipes accept custom_command parameter."""
-        from recipes import satdump, noaa_apt, meteor_qpsk, noaa_apt_gr
+    def test_pipeline_function_signatures(self):
+        """Test that all pipelines accept custom_command parameter."""
+        from pipelines import satdump, noaa_apt, meteor_qpsk, noaa_apt_gr
 
-        # Check that all recipe execute functions have custom_command parameter
+        # Check that all pipeline execute functions have custom_command parameter
         import inspect
 
-        recipes = [satdump, noaa_apt, meteor_qpsk, noaa_apt_gr]
+        pipelines = [satdump, noaa_apt, meteor_qpsk, noaa_apt_gr]
 
-        for recipe in recipes:
-            sig = inspect.signature(recipe.execute)
+        for pipeline in pipelines:
+            sig = inspect.signature(pipeline.execute)
             params = list(sig.parameters.keys())
 
             # Should have custom_command parameter (after metadata)
@@ -136,7 +141,7 @@ class TestCustomCommands(unittest.TestCase):
         satellite = {
             'freq': '137.9e6',
             'name': 'TEST-SAT',
-            'recipe': 'satdump',
+            'pipeline': 'satdump',
             'custom_command': 'test-command -v'
         }
 
@@ -160,7 +165,7 @@ class TestCustomCommands(unittest.TestCase):
         satellite = {
             'freq': '137.1e6',
             'name': 'EMPTY-SAT',
-            'recipe': 'satdump',
+            'pipeline': 'satdump',
             'custom_command': ''
         }
 
@@ -177,7 +182,7 @@ class TestCustomCommands(unittest.TestCase):
     def test_custom_command_parameter_passing(self):
         """Test that custom_command parameter is passed correctly through the chain."""
         # This test verifies that the custom_command parameter flows correctly
-        # through the execution chain without actually executing recipes
+        # through the execution chain without actually executing pipelines
 
         config = open_config()
         meteor_sat = next(s for s in config['satellites'] if s['name'] == 'METEOR-M2 3')
@@ -185,46 +190,56 @@ class TestCustomCommands(unittest.TestCase):
         # Verify the satellite has custom_command
         self.assertEqual(meteor_sat['custom_command'], 'satdump -i airspy0 -v')
 
-        # Test that get_recipe works with custom_command
-        recipe_func, recipe_name = get_recipe(meteor_sat)
-        self.assertEqual(recipe_name, 'satdump')
+        # Test that get_pipeline works with custom_command
+        pipeline_func, pipeline_name = get_pipeline(meteor_sat)
+        self.assertEqual(pipeline_name, 'satdump')
 
-        # Test that the recipe function signature accepts custom_command
+        # Test that the pipeline function signature accepts custom_command
         import inspect
-        sig = inspect.signature(recipe_func)
+        sig = inspect.signature(pipeline_func)
         params = list(sig.parameters.keys())
         self.assertIn('custom_command', params)
 
-    def test_satdump_recipe_custom_command_logic(self):
-        """Test that satdump recipe logic handles custom_command correctly."""
-        from recipes.satdump import execute
+    def test_satdump_pipeline_custom_command_logic(self):
+        """Test that satdump pipeline logic handles custom_command correctly."""
+        # Mock the sh module to avoid import errors
+        with patch.dict('sys.modules', {'sh': MagicMock()}):
+            # Mock sh.satdump specifically
+            mock_sh = MagicMock()
+            mock_proc = MagicMock()
+            mock_proc.wait.return_value = 0
+            mock_proc.is_alive.return_value = False
+            mock_sh.satdump.return_value = mock_proc
 
-        # Test the logic without actually executing commands
-        metadata = Metadata()
+            with patch('pipelines.satdump.sh', mock_sh):
+                from pipelines.satdump import execute
 
-        # Test with custom command - use keyword arguments to avoid conflicts
-        results = execute(working_dir='/tmp/test',
-                         frequency='137.9e6',
-                         duration=timedelta(minutes=10),
-                         metadata=metadata,
-                         custom_command='custom-satdump-command',
-                         sh=None)
+                # Test the logic without actually executing commands
+                metadata = Metadata()
 
-        # Check that the recipe returns expected results
-        self.assertEqual(len(results), 1)
-        self.assertEqual(results[0][0], 'RAW')
+                # Test with custom command - use keyword arguments to avoid conflicts
+                results = execute(working_dir='/tmp/test',
+                                 frequency='137.9e6',
+                                 duration=timedelta(minutes=10),
+                                 metadata=metadata,
+                                 custom_command='custom-satdump-command',
+                                 sh=mock_sh)
 
-        # Test without custom command (should use default) - use keyword arguments
-        results = execute(working_dir='/tmp/test',
-                         frequency='137.9e6',
-                         duration=timedelta(minutes=10),
-                         metadata=metadata,
-                         custom_command=None,
-                         sh=None)
+                # Check that the pipeline returns expected results
+                self.assertEqual(len(results), 1)
+                self.assertEqual(results[0][0], 'RAW')
 
-        # Check that the recipe returns expected results
-        self.assertEqual(len(results), 1)
-        self.assertEqual(results[0][0], 'RAW')
+                # Test without custom command (should use default) - use keyword arguments
+                results = execute(working_dir='/tmp/test',
+                                 frequency='137.9e6',
+                                 duration=timedelta(minutes=10),
+                                 metadata=metadata,
+                                 custom_command=None,
+                                 sh=mock_sh)
+
+                # Check that the pipeline returns expected results
+                self.assertEqual(len(results), 1)
+                self.assertEqual(results[0][0], 'RAW')
 
     def test_metadata_custom_command_storage(self):
         """Test that custom_command is stored in metadata."""
@@ -234,16 +249,22 @@ class TestCustomCommands(unittest.TestCase):
         metadata = Metadata()
         los_time = datetime.now(timezone.utc) + timedelta(minutes=10)
 
-        # Mock the recipe execution to avoid actual file operations
-        with patch('recipes.satdump.execute') as mock_execute:
-            mock_execute.return_value = [('RAW', '/tmp/test.raw')]
+        # Mock the sh module to avoid import errors
+        with patch.dict('sys.modules', {'sh': MagicMock()}):
+            # Mock sh.satdump specifically
+            mock_sh = MagicMock()
+            mock_proc = MagicMock()
+            mock_proc.wait.return_value = 0
+            mock_proc.is_alive.return_value = False
+            mock_sh.satdump.return_value = mock_proc
 
-            results, obs_dir, updated_metadata = execute_recipe(meteor_sat, los_time, metadata)
+            with patch('pipelines.satdump.sh', mock_sh):
+                results, obs_dir, updated_metadata = execute_pipeline(meteor_sat, los_time, metadata)
 
-            # Check that custom_command is in metadata
-            self.assertEqual(updated_metadata.get('custom_command'), 'satdump -i airspy0 -v')
-            self.assertEqual(updated_metadata.get('recipe'), 'satdump')
-            self.assertEqual(updated_metadata.get('frequency'), '137.9e6')
+                # Check that custom_command is in metadata
+                self.assertEqual(updated_metadata.get('custom_command'), 'satdump -i airspy0 -v')
+                self.assertEqual(updated_metadata.get('pipeline'), 'satdump')
+                self.assertEqual(updated_metadata.get('frequency'), '137.9e6')
 
     def test_custom_command_field_in_models(self):
         """Test that custom_command field is properly defined in models."""
@@ -254,7 +275,7 @@ class TestCustomCommands(unittest.TestCase):
         sat_config = SatelliteConfiguration(
             freq='137.9e6',
             name='TEST-SAT',
-            recipe='satdump',
+            pipeline='satdump',
             custom_command='test-command'
         )
 
@@ -262,7 +283,7 @@ class TestCustomCommands(unittest.TestCase):
         self.assertEqual(sat_config['custom_command'], 'test-command')
         self.assertEqual(sat_config['freq'], '137.9e6')
         self.assertEqual(sat_config['name'], 'TEST-SAT')
-        self.assertEqual(sat_config['recipe'], 'satdump')
+        self.assertEqual(sat_config['pipeline'], 'satdump')
 
     def test_custom_command_validation(self):
         """Test that custom_command can contain various command formats."""
@@ -285,7 +306,7 @@ class TestCustomCommands(unittest.TestCase):
                 satellite = {
                     'freq': '137.9e6',
                     'name': f'TEST-SAT-{i}',
-                    'recipe': 'satdump',
+                    'pipeline': 'satdump',
                     'custom_command': cmd
                 }
 

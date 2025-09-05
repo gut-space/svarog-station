@@ -7,7 +7,7 @@ import stat
 import sys
 
 EXTERNAL_DEPENDENCIES = ["noaa-apt", "rtl_fm", "sox", "meteor-demod", "medet", "convert"]
-RECIPE_DIR = "recipes"
+PIPELINE_DIR = "pipelines"
 
 
 def get_requirements_and_links():
@@ -99,14 +99,14 @@ def check_deps():
     return not missing
 
 
-def setup_recipes():
-    """Sets the recipes' exec flag"""
-    for recipe_candidate_name in os.listdir(RECIPE_DIR):
-        if not recipe_candidate_name.endswith(".sh"):
+def setup_pipelines():
+    """Sets the pipelines' exec flag"""
+    for pipeline_candidate_name in os.listdir(PIPELINE_DIR):
+        if not pipeline_candidate_name.endswith(".sh"):
             continue
-        recipe_path = os.path.join(RECIPE_DIR, recipe_candidate_name)
-        st = os.stat(recipe_path)
-        os.chmod(recipe_path, st.st_mode | stat.S_IXUSR)
+        pipeline_path = os.path.join(PIPELINE_DIR, pipeline_candidate_name)
+        st = os.stat(pipeline_path)
+        os.chmod(pipeline_path, st.st_mode | stat.S_IXUSR)
 
 
 parser = argparse.ArgumentParser(description='Set up the Svarog station environment.')
@@ -143,7 +143,7 @@ else:
     print("WARNING: $ pip3 install -r requirements.txt")
     print("WARNING: ")
 
-setup_recipes()
+setup_pipelines()
 setup_aliases()
 
 print("svarog-station installation complete. Log out, log in, and then:")

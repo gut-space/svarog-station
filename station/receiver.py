@@ -14,7 +14,7 @@ from utils.dates import from_iso_format
 from utils.configuration import open_config
 from utils.globalvars import setup_logging
 from submitobs import submit_observation, SubmitRequestData
-from recipes import factory
+from pipelines import factory
 from quality_ratings import get_rate_by_name
 from sh import CommandNotFound
 from metadata import Metadata
@@ -106,26 +106,26 @@ def cmd():
     logging.info(f"INFO: metadata written to {metadata_file}.")
 
     try:
-        results, dir, m = factory.execute_recipe(satellite, los_datetime, m)
+        results, dir, m = factory.execute_pipeline(satellite, los_datetime, m)
     except Exception as e:
-        logging.error(f"ERROR: Recipe execution failed, exception: {e}")
+        logging.error(f"ERROR: Pipeline execution failed, exception: {e}")
         raise
 
-    # We're entirely sure the recipe is honest and reported only files that were actually created *cough*.
-    # However, if things go south and for some reason the recipe is mistaken (e.g. the noaa-apt fails to
+    # We're entirely sure the pipeline is honest and reported only files that were actually created *cough*.
+    # However, if things go south and for some reason the pipeline is mistaken (e.g. the noaa-apt fails to
     # create a .png file, because the input WAV file was junk), then we should filter out the files
     # that do not exist.
     files_txt = ""
     valid_results = []
     for a, b in results:
         if not os.path.exists(b):
-            logging.warning("Recipe claims to provide %s file %s, but this file doesn't exist. Skipping." % (a, b))
+            logging.warning("Pipeline claims to provide %s file %s, but this file doesn't exist. Skipping." % (a, b))
             continue
         files_txt += a + ":" + b + " "
         valid_results.append((a, b))
     results = valid_results
 
-    logging.info("Recipe execution complete, generated %d result[s] (%s), stored in %s directory." % (len(results), files_txt, dir))
+    logging.info("Pipeline execution complete, generated %d result[s] (%s), stored in %s directory." % (len(results), files_txt, dir))
 
     # Post-processing
     save_mode = satellite["save_to_disk"]

@@ -1,9 +1,9 @@
 '''
 The different satellites require different software and configuration.
-This is a recipe-based solution. "Recipe" is a script which is responsible
+This is a pipeline-based solution. "Pipeline" is a script which is responsible
 for the signal reception and its decoding.
 
-Each recipe takes three parameters:
+Each pipeline takes three parameters:
 
 * Working directory - it is writable, clean and temporary directory.
 * Frequency - transmission frequency in MHz
@@ -22,19 +22,19 @@ In the future additional categories will be added. Most likely there will be:
 
 Other categories are likely to appear.
 
-User should have a possibility to execute recipe in stand alone mode, i.e. without
+User should have a possibility to execute pipeline in stand alone mode, i.e. without
 the whole station code (without any need to initialize the station).
 
-Recipe isn't responsible for clean up. The working directory should be deleted
+Pipeline isn't responsible for clean up. The working directory should be deleted
 after file processing. If some files should be kept, then they should be moved
 to a safe place.
 
-User has a possibility to select recipe by "recipe" parameter in satellite
-config. Now it is optional and script try to deduce recipe based on satellite.
-(For example if recipe isn't provided and name starts with NOAA then we use
-recipe for NOAA).
+User has a possibility to select pipeline by "pipeline" parameter in satellite
+config. Now it is optional and script try to deduce pipeline based on satellite.
+(For example if pipeline isn't provided and name starts with NOAA then we use
+pipeline for NOAA).
 
-All recipes must be located in directory with this file ("recipes") and have
+All pipelines must be located in directory with this file ("pipelines") and have
 "execute" method which accept all parameters.
 '''
 
@@ -45,7 +45,7 @@ import logging
 from typing import Iterable, List, Tuple
 
 from utils.models import SatelliteConfiguration
-from recipes import recipes
+from pipelines import pipelines
 from utils.configuration import open_config
 from metadata import Metadata
 
@@ -71,30 +71,32 @@ def setup_base_dir():
     return base_dir
 
 
-def get_recipe(sat: SatelliteConfiguration):
+def get_pipeline(sat: SatelliteConfiguration):
     '''
-    Returns path to recipe file assigned with the specified satellite.
-    If recipe doesn't exist throw LookupError.
+    Returns path to pipeline file assigned with the specified satellite.
+    If pipeline doesn't exist throw LookupError.
 
-    Function check "recipe" field in passed configuration for recipe.
-    If it is empty then check built-in list with compatible recipes.
+    Function check "pipeline" field in passed configuration for pipeline.
+    If it is empty then check built-in list with compatible pipelines.
 
     sat contains a dictionary with the whole configuration, including fields:
-    freq, name, recipe, save_to_disk, submit, aos_at, max_elevation, disabled
+    freq, name, pipeline, save_to_disk, submit, aos_at, max_elevation, disabled
     '''
 
-    recipe = None
-    if "recipe" in sat:
-        recipe = sat["recipe"]
-    if recipe is None and sat["name"].startswith("NOAA"):
-        recipe = "noaa-apt"
-    if recipe is None:
-        raise LookupError(f"Recipe not specified. Please update your entry for satellite {sat['name']} in config.yml, e.g. add 'recipe: satdump'")
+    pipeline = None
+    if "pipeline" in sat:
+        pipeline = sat["pipeline"]
+    elif "recipe" in sat:  # Backward compatibility
+        pipeline = sat["recipe"]
+    if pipeline is None and sat["name"].startswith("NOAA"):
+        pipeline = "noaa-apt"
+    if pipeline is None:
+        raise LookupError(f"Pipeline not specified. Please update your entry for satellite {sat['name']} in config.yml, e.g. add 'pipeline: satdump'")
 
-    if not recipe in recipes:
-        raise LookupError(f"Recipe {recipe} not found. Supported recipes are {', '.join(recipes.keys())}.")
+    if not pipeline in pipelines:
+        raise LookupError(f"Pipeline {pipeline} not found. Supported pipelines are {', '.join(pipelines.keys())}.")
 
-    return recipes[recipe], recipe
+    return pipelines[pipeline], pipeline
 
 
 def get_unique_dir(sat: SatelliteConfiguration, los: datetime.datetime) -> str:
@@ -113,14 +115,14 @@ def get_dir(sat: SatelliteConfiguration, los: datetime.datetime) -> str:
     return reception_dir
 
 
-def execute_recipe(sat: SatelliteConfiguration, los: datetime.datetime, metadata: Metadata) \
+def execute_pipeline(sat: SatelliteConfiguration, los: datetime.datetime, metadata: Metadata) \
         -> Tuple[Iterable[Tuple[ReceptionResultCategory, str]], str, Metadata]:
     '''
-    Execute recipe for specified satellite and return results.
+    Execute pipeline for specified satellite and return results.
 
     Return collection of tuples with category, path, and updated metadata.
     Second item in result is path to temporary observation directory.
-    If no recipe found then throw LookupError.
+    If no pipeline found then throw LookupError.
 
     We use "signal" category for raw, unprocessed received signal file
     and "product" for finished data (e. q. imagery) extracted from signal.
@@ -130,7 +132,7 @@ def execute_recipe(sat: SatelliteConfiguration, los: datetime.datetime, metadata
     You need delete or move returned files when you don't need them. You should
     also delete the temporary observation directory.
     '''
-    recipe_function, recipe_name = get_recipe(sat)
+    pipeline_function, pipeline_name = get_pipeline(sat)
 
     reception_dir = get_dir(sat, los)
     now = datetime.datetime.now(datetime.timezone.utc)
@@ -140,19 +142,25 @@ def execute_recipe(sat: SatelliteConfiguration, los: datetime.datetime, metadata
         logging.error("Invalid record interval (now is {now}, LOS is {los}, delta is {record_interval.total_seconds()} seconds)")
         raise ValueError(f"Invalid record interval (now is {now}, LOS is {los}, delta is {record_interval.total_seconds()} seconds)")
 
-    # Add recipe-specific metadata to the existing metadata object
+    # Add pipeline-specific metadata to the existing metadata object
     metadata.set("frequency", sat["freq"])
-    metadata.set("recipe", str(recipe_name))
+    metadata.set("pipeline", str(pipeline_name))
+    # Keep backward compatibility
+    metadata.set("recipe", str(pipeline_name))
 
     # Pass custom command if specified
     custom_command = sat.get("custom_command")
     if custom_command:
         metadata.set("custom_command", custom_command)
 
-    output = recipe_function(reception_dir, sat["freq"], record_interval, metadata, custom_command)
+    output = pipeline_function(reception_dir, sat["freq"], record_interval, metadata, custom_command)
     return output, reception_dir, metadata
 
 
+def get_pipeline_names() -> List[str]:
+    '''Returns all pipeline names.'''
+    return list(pipelines.keys())
+
 def get_recipe_names() -> List[str]:
-    '''Returns all recipe names.'''
-    return list(recipes.keys())
+    '''Returns all recipe names (backward compatibility).'''
+    return get_pipeline_names()

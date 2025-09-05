@@ -7,7 +7,7 @@ import time
 import sh
 
 
-from recipes.helpers import set_sh_defaults
+from pipelines.helpers import set_sh_defaults
 
 def toname(sat_name):
     return sat_name.replace(" ", "-").replace("_", "-").lower()

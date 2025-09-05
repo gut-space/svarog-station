@@ -27,7 +27,7 @@ from utils.cron import get_planner_command, get_receiver_command, open_crontab
 from utils.observations import obs_list
 from crontab import CronItem
 from orbit_predictor.locations import Location
-from recipes.factory import get_recipe_names
+from pipelines.factory import get_pipeline_names, get_recipe_names
 from quality_ratings import get_rate_names
 import az_elev_chart
 
@@ -192,9 +192,10 @@ satellite_config_parser.add_argument("-f", "--frequency", type=str, help="Freque
 satellite_config_parser.add_argument("-aos", type=int, help="Elevation (in degress) on AOS")
 satellite_config_parser.add_argument("-me", "--max-elevation", type=int, help="Max elevation greater than")
 satellite_config_parser.add_argument("-d", "--delete", action="store_true", default=False, help="Delete satellite")
-satellite_config_parser.add_argument("--recipe", choices=get_recipe_names(), help="Recipe name to handle observation")
+satellite_config_parser.add_argument("--pipeline", choices=get_pipeline_names(), help="Pipeline name to handle observation")
+satellite_config_parser.add_argument("--recipe", choices=get_recipe_names(), help="Recipe name to handle observation (backward compatibility)")
 satellite_config_parser.add_argument("--rate", choices=get_rate_names(), help="Function to rate quality of imagery")
-satellite_config_parser.add_argument("--custom-command", type=str, help="Custom command for the recipe")
+satellite_config_parser.add_argument("--custom-command", type=str, help="Custom command for the pipeline")
 submit_satellite_config_parser = satellite_config_parser.add_mutually_exclusive_group()
 submit_satellite_config_parser.add_argument("--submit", action="store_true", help="Submit observations to content server", dest="submit", default=None)
 submit_satellite_config_parser.add_argument(

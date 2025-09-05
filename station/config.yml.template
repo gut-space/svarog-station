@@ -22,7 +22,7 @@ satellites:
   rate: analog
 - freq: 137.1e6
   name: METEOR-M 2
-  recipe: meteor-qpsk
+  pipeline: meteor-qpsk
   rate: digital
 server:
   id: '1'

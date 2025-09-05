@@ -7,7 +7,7 @@ import signal
 import waterfall
 import sh
 
-from recipes.helpers import set_sh_defaults
+from pipelines.helpers import set_sh_defaults
 
 
 @set_sh_defaults

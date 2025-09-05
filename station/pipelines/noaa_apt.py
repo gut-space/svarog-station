@@ -2,10 +2,11 @@ from contextlib import suppress
 from datetime import timedelta
 import os.path
 import signal
-
+import logging
+import time
 import sh
 
-from recipes.helpers import set_sh_defaults
+from pipelines.helpers import set_sh_defaults
 
 
 @set_sh_defaults
@@ -52,7 +53,13 @@ def execute(working_dir: str, frequency: str, duration: timedelta, metadata, cus
                 # rtl_fm and rx_fm both print messages on stderr
                 _err=logfile
             )
-            rtl_proc.send_signal(signal.SIGKILL)
+            if rtl_proc.is_alive():
+                logfile.write(f"Satdump process is still running, sending SIGTERM")
+                rtl_proc.signal(signal.SIGTERM)
+                time.sleep(15)
+            if rtl_proc.is_alive():
+                logfile.write(f"Satdump process is still running, sending SIGKILL")
+                rtl_proc.send_signal(signal.SIGKILL)
 
         except sh.ErrorReturnCode_1 as e:
             # The rtl_fm command is undocumented wrt to exit codes. Reading the code, it could return 1
