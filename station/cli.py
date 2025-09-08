@@ -27,7 +27,7 @@ from utils.cron import get_planner_command, get_receiver_command, open_crontab
 from utils.observations import obs_list
 from crontab import CronItem
 from orbit_predictor.locations import Location
-from recipes.factory import get_recipe_names
+from pipelines.factory import get_pipeline_names, get_recipe_names
 from quality_ratings import get_rate_names
 import az_elev_chart
 
@@ -192,8 +192,10 @@ satellite_config_parser.add_argument("-f", "--frequency", type=str, help="Freque
 satellite_config_parser.add_argument("-aos", type=int, help="Elevation (in degress) on AOS")
 satellite_config_parser.add_argument("-me", "--max-elevation", type=int, help="Max elevation greater than")
 satellite_config_parser.add_argument("-d", "--delete", action="store_true", default=False, help="Delete satellite")
-satellite_config_parser.add_argument("--recipe", choices=get_recipe_names(), help="Recipe name to handle observation")
+satellite_config_parser.add_argument("--pipeline", choices=get_pipeline_names(), help="Pipeline name to handle observation")
+satellite_config_parser.add_argument("--recipe", choices=get_recipe_names(), help="Recipe name to handle observation (backward compatibility)")
 satellite_config_parser.add_argument("--rate", choices=get_rate_names(), help="Function to rate quality of imagery")
+satellite_config_parser.add_argument("--custom-command", type=str, help="Custom command for the pipeline")
 submit_satellite_config_parser = satellite_config_parser.add_mutually_exclusive_group()
 submit_satellite_config_parser.add_argument("--submit", action="store_true", help="Submit observations to content server", dest="submit", default=None)
 submit_satellite_config_parser.add_argument(
@@ -221,9 +223,10 @@ logging_parser.add_argument("--level", choices=("DEBUG", "INFO", "WARNING", "ERR
 
 obs_parser = subparsers.add_parser("obs", help="Local observations management")
 obs_parser.add_argument("--clean", action="store_true", default=False, help="Clean useless observations (default: %(default)s)")
-obs_parser.add_argument("--del-uploaded", action="store_true", default=False, help="Deletes observations that were uploaded (default: %(default)s)")
+obs_parser.add_argument("--status", type=str, help="Comma-separated list of statuses to filter by (e.g., 'UPLOADED,SUCCESS')")
+obs_parser.add_argument("--delete", type=str, help="Comma-separated list of statuses to delete (e.g., 'UPLOADED,USELESS')")
 
-metadata_parser = subparsers.add_parser("metadata", help="Displays metadata")
+metadata_parser = subparsers.add_parser("metadata", help="Displays metadata (such as SDR, antenna type, etc.)")
 
 args = parser.parse_args()
 command = args.command
@@ -400,7 +403,7 @@ elif command == "config":
                     ("freq", "frequency"),
                     ("aos_at", "aos"),
                     ("max_elevation_greater_than", "max_elevation"),
-                    "recipe", "rate"
+                    "recipe", "rate", "custom_command"
                 ))
                 if args.submit and 'submit' in sat:
                     del sat['submit']
@@ -416,6 +419,12 @@ elif command == "config":
                     sat["disabled"] = True
                 elif "disabled" in sat:
                     del sat['disabled']
+
+                # Handle custom command field - remove if empty string, set if provided
+                if args.custom_command == "" and 'custom_command' in sat:
+                    del sat['custom_command']
+                elif args.custom_command is not None:
+                    sat["custom_command"] = args.custom_command
 
         elif args.delete:
             section.clear()
@@ -465,6 +474,15 @@ elif command == "obs":
         print("No obsdir defined in config file. Please use `station config global --directory <dir>` to set it.")
         sys.exit(1)
 
-    obs_list(obsdir=config["obsdir"], clean=args.clean, del_uploaded=args.del_uploaded)
+    # Parse status filter and deletion lists
+    status_filter = None
+    if args.status:
+        status_filter = [s.strip() for s in args.status.split(',')]
+
+    del_statuses = None
+    if args.delete:
+        del_statuses = [s.strip() for s in args.delete.split(',')]
+
+    obs_list(obsdir=config["obsdir"], clean=args.clean, status_filter=status_filter, del_statuses=del_statuses)
 else:
     parser.print_help()

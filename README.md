@@ -6,11 +6,12 @@
 ![python 3.12](https://github.com/gut-space/svarog-station/actions/workflows/pytest-3.12.yml/badge.svg)
 ![CodeQL](https://github.com/gut-space/svarog-station/actions/workflows/github-code-scanning/codeql/badge.svg)
 
-<img align="right" width="128" height="128" src="https://github.com/gut-space/svarog/blob/master/doc/logo.png">
+<img align="right" width="128" height="128" src="https://github.com/gut-space/svarog-server/blob/master/doc/logo.png">
+
+Svarog station is a console only automated environment for a ground station receiving sat transmissions.
 
 This is the code for a fully functional automated VHF satellite ground station. It can operate on it own,
 but can also upload observations to the [Svarog server](https://github.com/gut-space/svarog-server).
-
 
 The goal of this project is to build a fully functional automated VHF satellite ground station, loosely based on [satnogs](https://satnogs.org) project.
 
@@ -18,7 +19,7 @@ Project founders: [Sławek Figiel](https://github.com/fivitti) and [Tomek Mrugal
 
 ## Project status
 
-As of July 2025, the process is being revived after couple years of dormancy. In the past, the code was able to do:
+As of Sep 2025, the process is being revived after couple years of dormancy. In the past, the code was able to do:
 
 - Scheduling of NOAA and METEOR sat passes, trigger and shutdown reception routines
 - Automated reception and decoding for NOAA-15, NOAA-18 and NOAA-19 satellites (APT)
@@ -29,10 +30,24 @@ As of July 2025, the process is being revived after couple years of dormancy. In
 - Pass over charts (azimuth/elevation)
 - Quality assessment for decoded images
 
+## Screenshots
+
+List of upcoming passes, with maximum altitude being color coded:
+
+![Plan show screenshot](doc/images/svarog-plan-show.jpg)
+
+Console view of the upcoming pass:
+
+![Upcoming pass, screenshot 1](doc/images/svarog-pass1.jpg)
+
+![Upcoming pass, screenshot 2](doc/images/svarog-pass2.jpg)
+
+
 ## Documentation
 
 - [Installation](doc/install.md)
 - [Architecture](doc/arch.md)
+- [Custom commands](doc/custom-commands.md)
 - [Developer's guide](doc/devel.md)
 
 For older files see https://github.com/gut-space/satnogs.

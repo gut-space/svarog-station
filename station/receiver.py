@@ -12,15 +12,16 @@ from utils.functional import first
 from utils.models import get_satellite
 from utils.dates import from_iso_format
 from utils.configuration import open_config
+from utils.globalvars import setup_logging
 from submitobs import submit_observation, SubmitRequestData
-from recipes import factory
+from pipelines import factory
 from quality_ratings import get_rate_by_name
 from sh import CommandNotFound
 from metadata import Metadata
 
 
 def move_to_satellite_directory(root: str, sat_name: str, path: str):
-    now = datetime.datetime.utcnow()
+    now = datetime.datetime.now()
     timestamp_dir = now.strftime(r"%Y-%m-%d")
     base = os.path.basename(path)
     new_dir = os.path.join(root, sat_name, timestamp_dir)
@@ -28,9 +29,6 @@ def move_to_satellite_directory(root: str, sat_name: str, path: str):
 
     os.makedirs(new_dir, exist_ok=True)
     shutil.move(path, new_path)
-
-
-config = open_config()
 
 
 def get_rating_for_product(product_path: str, rate_name: typing.Optional[str]) \
@@ -49,28 +47,53 @@ def get_rating_for_product(product_path: str, rate_name: typing.Optional[str]) \
 
 def cmd():
     if len(sys.argv) < 3:
-        print("Usage: receiver.py <name> <los> [opts]")
+        print("Usage: receiver.py <name> <los> [aos]")
         print("name - name of the receiver")
-        print("los - loss of signal time (UTC)")
+        print("los - loss of signal time (UTC), i.e. end of transmission")
+        print("aos - acquisition of signal time (UTC), i.e. start of transmission (if not specified, start immediately)")
         return
 
     _, name, los, *opts = sys.argv
 
-    logging.info("Starting receiver job: name=%s los=%s, PATH=%s" % (name, los, os.getenv('PATH')))
+    config = open_config()
 
-    satellite = get_satellite(config, name)
+    logging.info("Starting receiver job: name=%s, los=%s" % (name, los))
 
-    aos_datetime = datetime.datetime.utcnow()
-    los_datetime = from_iso_format(los)
+    try:
+        satellite = get_satellite(config, name)
+    except LookupError as e:
+        logging.error(f"Satellite {name} not found in config.yml: {e}")
+        return
+
+    try:
+        los_datetime = from_iso_format(los)
+        # If timezone was not provided, assume UTC
+        if los_datetime.tzinfo is None:
+            los_datetime = los_datetime.replace(tzinfo=datetime.timezone.utc)
+    except ValueError as e:
+        logging.error(f"Invalid LOS time: {los}: {e}")
+        return
+
+    if len(opts) > 2:
+        aso_datetime = from_iso_format(opts[0])
+        # If timezone was not provided, assume UTC
+        if aso_datetime.tzinfo is None:
+            aso_datetime = aso_datetime.replace(tzinfo=datetime.timezone.utc)
+    else:
+        aos_datetime = datetime.datetime.now(datetime.timezone.utc)
+
 
     # TODO: calculate TCA properly. There may be cases when an observation is interrupted by another,
     # better pass. Also, part of the pass could be obscured by buildings.
     tca_datetime = aos_datetime + (los_datetime - aos_datetime) / 2
 
+    logging.info(f"AOS: {aos_datetime}, LOS: {los_datetime}, TCA: {tca_datetime}")
     dir = factory.get_dir(satellite, los_datetime)
+    logging.info(f"Observation directory: {dir}, logging will continue in {dir + '/log.txt'}")
+    setup_logging(config["logging"]["level"], dir + "/log.txt")
 
     # Early metadata write to local file. We do this before the recipe is executed, because the recipe
-    # may file. If the recipe returns without any major issues, we will write it again with possibly
+    # may fail. If the recipe returns without any major issues, we will write it again with possibly
     # extra metadata returned by the recipe.
     m = Metadata()
     m.set("satellite", satellite["name"])
@@ -83,26 +106,26 @@ def cmd():
     logging.info(f"INFO: metadata written to {metadata_file}.")
 
     try:
-        results, dir, metadata = factory.execute_recipe(satellite, los_datetime)
+        results, dir, m = factory.execute_pipeline(satellite, los_datetime, m)
     except Exception as e:
-        logging.error(f"ERROR: Recipe execution failed, exception: {e}, {str(e)}")
-        return
+        logging.error(f"ERROR: Pipeline execution failed, exception: {e}")
+        raise
 
-    # We're entirely sure the recipe is honest and reported only files that were actually created *cough*.
-    # However, if things go south and for some reason the recipe is mistaken (e.g. the noaa-apt fails to
+    # We're entirely sure the pipeline is honest and reported only files that were actually created *cough*.
+    # However, if things go south and for some reason the pipeline is mistaken (e.g. the noaa-apt fails to
     # create a .png file, because the input WAV file was junk), then we should filter out the files
     # that do not exist.
     files_txt = ""
     valid_results = []
     for a, b in results:
         if not os.path.exists(b):
-            logging.warning("Recipe claims to provide %s file %s, but this file doesn't exist. Skipping." % (a, b))
+            logging.warning("Pipeline claims to provide %s file %s, but this file doesn't exist. Skipping." % (a, b))
             continue
         files_txt += a + ":" + b + " "
         valid_results.append((a, b))
     results = valid_results
 
-    logging.info("Recipe execution complete, generated %d result[s] (%s), stored in %s directory." % (len(results), files_txt, dir))
+    logging.info("Pipeline execution complete, generated %d result[s] (%s), stored in %s directory." % (len(results), files_txt, dir))
 
     # Post-processing
     save_mode = satellite["save_to_disk"]
@@ -114,15 +137,7 @@ def cmd():
     # signal = first(results, lambda r: r[0] == "SIGNAL")
     # log = first(results, lambda r: r[0] == "LOG")
 
-    # Use the metadata stored in file, but supplement it with details returned by the recipe
-    m = Metadata()
-    for x in metadata:
-        m.set(x, metadata[x])
-    m.set("satellite", satellite["name"])
-    m.set("aos", aos_datetime.isoformat())
-    m.set("los", los_datetime.isoformat())
-    m.set("tca", tca_datetime.isoformat())
-    # Write metadata to local file
+    # The metadata object was already updated by the recipe, just write it to file
     metadata_file = os.path.join(dir, "metadata.json")
     m.writeFile(metadata_file)
     logging.info(f"INFO: Updated metadata written to {metadata_file}.")

@@ -6,7 +6,7 @@ from enum import Enum
 
 
 class ObservationStatus(Enum):
-    UNKOWN = 0  # Unable to determine status
+    UNKNOWN = 0  # Unable to determine status
     USELESS = 1  # Observation is useless (no useful data, just log)
     SUCCESS = 2  # Observation is successful, but was not uploaded
     UPLOADED = 3  # Was able to confirm that the observation was uploaded properly.
@@ -48,8 +48,15 @@ def obs_clean(obsdir: str, obsname: str):
             file.unlink()
 
 
-def obs_list(obsdir: str, clean: bool = False, del_uploaded: bool = False):
-    """ Lists observations in the specified directory. If clean is True, it will also delete useless observations."""
+def obs_list(obsdir: str, clean: bool = False, status_filter: list = None, del_statuses: list = None):
+    """ Lists observations in the specified directory.
+
+    Args:
+        obsdir: Directory containing observations
+        clean: If True, clean useless files from successful observations
+        status_filter: List of ObservationStatus values to filter by (only show matching observations)
+        del_statuses: List of ObservationStatus values to delete (delete matching observations)
+    """
     obs_stats(obsdir)
 
     dirs = sorted(d for d in Path(obsdir).glob('*') if d.is_dir())
@@ -59,12 +66,24 @@ def obs_list(obsdir: str, clean: bool = False, del_uploaded: bool = False):
     success_cnt = 0
     total_cnt = 0
     unknown_cnt = 0
+
+    # Convert status names to enum values if needed
+    if status_filter:
+        status_filter = [ObservationStatus[s.upper()] if isinstance(s, str) else s for s in status_filter]
+    if del_statuses:
+        del_statuses = [ObservationStatus[s.upper()] if isinstance(s, str) else s for s in del_statuses]
+
     for d in dirs:
         status = obs_determine_status(obsdir, d.name)
+
+        # Skip if not in status filter
+        if status_filter and status not in status_filter:
+            continue
+
         total_cnt += 1
         if status == ObservationStatus.USELESS:
             useless_cnt += 1
-        elif status == ObservationStatus.UNKOWN:
+        elif status == ObservationStatus.UNKNOWN:
             unknown_cnt += 1
         elif status == ObservationStatus.UPLOADED:
             uploaded_cnt += 1
@@ -72,15 +91,20 @@ def obs_list(obsdir: str, clean: bool = False, del_uploaded: bool = False):
             upload_failed_cnt += 1
         elif status == ObservationStatus.SUCCESS:
             success_cnt += 1
+
         obs_print_info(obsdir, d.name)
+
+        # Handle cleaning
         if clean and status == ObservationStatus.USELESS:
             print(f"obsdir={obsdir} Deleting useless observation {d.name}...")
             obs_del(obsdir, d.name)
         if clean and status == ObservationStatus.SUCCESS:
             print(f"obsdir={obsdir} Cleaning useless files from observation {d.name}...")
             obs_clean(obsdir, d.name)
-        if del_uploaded and status == ObservationStatus.UPLOADED:
-            print(f"obsdir={obsdir} Deleting uploaded observation {d.name}...")
+
+        # Handle deletion by status
+        if del_statuses and status in del_statuses:
+            print(f"obsdir={obsdir} Deleting {status.name.lower()} observation {d.name}...")
             obs_del(obsdir, d.name)
 
     print(f"SUMMARY: {total_cnt} observations, {uploaded_cnt} uploaded, {upload_failed_cnt} uploads failed, {success_cnt} successful, "
@@ -110,15 +134,18 @@ def obs_determine_status(obsdir: str, obsname: str) -> ObservationStatus:
     # Test 1: If there's a upload status file, it's either failed or successful upload.
     for file in files:
         if file.name == "uploaded.json":
-            with open(file) as json_data:
-                content = json.load(json_data)
-                if "status-code" in content and "response-text" in content:
-                    if content["status-code"] in [200, 201, 202, 203, 204, 205]:
-                        return ObservationStatus.UPLOADED
+            try:
+                with open(file) as json_data:
+                    content = json.load(json_data)
+                    if "status-code" in content and "response-text" in content:
+                        if content["status-code"] in [200, 201, 202, 203, 204, 205]:
+                            return ObservationStatus.UPLOADED
+                        else:
+                            return ObservationStatus.UPLOAD_FAILED
                     else:
-                        return ObservationStatus.UPLOAD_FAILED
-                else:
-                    return ObservationStatus.UNKNOWN
+                        return ObservationStatus.UNKNOWN
+            except json.JSONDecodeError:
+                return ObservationStatus.UNKNOWN
 
     # Test 2: check if there is only a session.log file. If there is, there's no data, so it's a failed observation.
     # If there's only one file and it's just a log, it's a failed observation.
@@ -145,7 +172,7 @@ def obs_determine_status(obsdir: str, obsname: str) -> ObservationStatus:
             # Found a large png file {file}, assuming this is a successful observation.
             return ObservationStatus.SUCCESS
 
-    return ObservationStatus.UNKOWN
+    return ObservationStatus.UNKNOWN
 
 
 def sizeof_fmt(num, suffix="B"):

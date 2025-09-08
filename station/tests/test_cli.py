@@ -111,7 +111,7 @@ class TestCli(unittest.TestCase):
                "pass                Information about passes",
                "config              Configuration",
                "obs                 Local observations management",
-               "metadata            Displays metadata",
+               "metadata            Displays metadata (such as SDR, antenna type, etc.)",
                "-h, --help            show this help message and exit"
                ]
         exp_code = 0
