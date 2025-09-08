@@ -65,6 +65,5 @@ def execute(working_dir: str, frequency: str, duration: timedelta, metadata, cus
         logging.info(f"Satdump process timed out after {duration.total_seconds()}+15 seconds")
 
     return [
-
-        # ("RAW", raw_path) Don't return anything.
+        ("RAW", raw_path)
     ]
