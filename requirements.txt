@@ -24,7 +24,7 @@ cycler==0.12.1
     # via matplotlib
 datetimerange==2.3.1
     # via -r requirements.in
-deepdiff==8.2.0
+deepdiff==8.6.2
     # via -r requirements.in
 fonttools==4.56.0
     # via matplotlib
@@ -44,7 +44,7 @@ numpy==2.2.3
     #   orbit-predictor
 orbit-predictor==1.15.0
     # via -r requirements.in
-orderly-set==5.3.0
+orderly-set==5.5.0
     # via deepdiff
 packaging==24.2
     # via
