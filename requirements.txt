@@ -72,7 +72,7 @@ pytz==2025.1
     #   typepy
 pyyaml==6.0.2
     # via -r requirements.in
-requests==2.32.4
+requests==2.33.0
     # via orbit-predictor
 sgp4==2.23
     # via orbit-predictor
